@@ -1,10 +1,6 @@
-import { randomUUID } from "node:crypto";
-import express from "express";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
-import { loadCourseChunks } from "./ingest/load.js";
+import { buildApp } from "./app.js";
 import { listCourses } from "./course/catalog.js";
+import { loadCourseChunks } from "./ingest/load.js";
 import { HashEmbedder } from "./retrieval/embedder.js";
 import { LocalVectorIndex } from "./retrieval/local.js";
 import { Retriever } from "./retrieval/retriever.js";
@@ -12,10 +8,8 @@ import { ReviewService } from "./review/service.js";
 import { DynamoStore } from "./store/dynamo.js";
 import { MemoryStore } from "./store/memory.js";
 import type { LearnerStore } from "./store/types.js";
-import { registerTools } from "./tools/index.js";
 import { BedrockTutor } from "./tutor/bedrock.js";
 import { KeywordTutor } from "./tutor/keyword.js";
-import { registerCards } from "./ui/cards.js";
 import type { Tutor } from "./tutor/types.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -36,7 +30,6 @@ async function buildRetriever(): Promise<Retriever> {
   }
   return retriever;
 }
-const retriever = await buildRetriever();
 
 function buildTutor(): Tutor {
   if (process.env.TUTOR === "bedrock") return new BedrockTutor();
@@ -44,63 +37,11 @@ function buildTutor(): Tutor {
   return new KeywordTutor();
 }
 
+const retriever = await buildRetriever();
 const service = new ReviewService(await buildStore(), buildTutor(), () => new Date(), retriever);
-
-function buildServer(): McpServer {
-  const server = new McpServer({ name: "scholia", version: "0.1.0" });
-  registerTools(server, service, retriever);
-  registerCards(server);
-  return server;
-}
-
-const app = express();
-app.use(express.json());
-
-// One transport per MCP session, keyed by Mcp-Session-Id.
-const transports = new Map<string, StreamableHTTPServerTransport>();
-
-app.post("/mcp", async (req, res) => {
-  const sessionId = req.header("mcp-session-id");
-  let transport = sessionId ? transports.get(sessionId) : undefined;
-
-  if (!transport) {
-    if (sessionId || !isInitializeRequest(req.body)) {
-      res.status(400).json({
-        jsonrpc: "2.0",
-        error: { code: -32000, message: "Bad Request: no valid session. Send initialize first." },
-        id: null,
-      });
-      return;
-    }
-    transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => randomUUID(),
-      onsessioninitialized: (id) => {
-        transports.set(id, transport!);
-      },
-    });
-    transport.onclose = () => {
-      if (transport?.sessionId) transports.delete(transport.sessionId);
-    };
-    await buildServer().connect(transport);
-  }
-
-  await transport.handleRequest(req, res, req.body);
-});
-
-// GET opens the server-to-client SSE stream; DELETE ends the session.
-const handleSessionRequest: express.RequestHandler = async (req, res) => {
-  const transport = transports.get(req.header("mcp-session-id") ?? "");
-  if (!transport) {
-    res.status(400).send("Invalid or missing Mcp-Session-Id");
-    return;
-  }
-  await transport.handleRequest(req, res);
-};
-app.get("/mcp", handleSessionRequest);
-app.delete("/mcp", handleSessionRequest);
-
-app.get("/healthz", (_req, res) => res.json({ ok: true, name: "scholia" }));
+const stateless = process.env.MCP_STATELESS === "1";
+const app = buildApp({ service, retriever, stateless, bearerToken: process.env.MCP_BEARER_TOKEN || undefined });
 
 app.listen(PORT, () => {
-  console.log(`Scholia MCP server listening on http://0.0.0.0:${PORT}/mcp`);
+  console.log(`Scholia MCP server listening on http://0.0.0.0:${PORT}/mcp (${stateless ? "stateless" : "sessions"})`);
 });

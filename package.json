@@ -13,7 +13,9 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "start:sim": "node dist/sim/server.js",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p infra/tsconfig.json",
+    "cdk": "cdk",
+    "deploy": "cdk deploy ScholiaAlexa --require-approval never",
     "test": "vitest run"
   },
   "dependencies": {
@@ -31,6 +33,10 @@
     "@types/express": "^5.0.0",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.18.2",
+    "aws-cdk": "^2.1145.0",
+    "aws-cdk-lib": "^2.272.0",
+    "constructs": "^10.8.1",
+    "esbuild": "^0.28.2",
     "tsx": "^4.20.0",
     "typescript": "^5.9.0",
     "vitest": "^3.2.0"

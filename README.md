@@ -26,6 +26,25 @@ Amazon Polly, and any `_meta.ui` card is rendered in a sandboxed iframe through 
 Env for the sim: `MCP_URL` (default `http://localhost:3000/mcp`), `SIM_PORT` (3001), `LEARNER_ID` (`demo-learner`),
 `COURSE_ID` (`mit-6.0001`), `POLLY_VOICE` (`Joanna`), `BEDROCK_MODEL_ID`.
 
+## Deploy (AWS, free-tier footprint)
+
+`infra/app.ts` is a CDK stack: one Lambda (Node 22, Lambda Web Adapter layer, Express unchanged, MCP stateless
+JSON mode) behind a Function URL, DynamoDB provisioned 5/5, Bedrock Nova invoke rights. Course index is built
+in-process at cold start, so no vector service bill. Nothing in the stack costs money at hackathon traffic.
+
+```sh
+# inside the dev container so no global installs are needed; ~/.aws is mounted read-only
+docker compose run --rm --no-deps dev npx cdk deploy ScholiaAlexa --require-approval never \
+  --parameters BearerToken="$(openssl rand -hex 24)"
+```
+
+The output `McpUrl` is the Streamable HTTP endpoint. Every call needs `Authorization: Bearer <token>`;
+without it the server answers 401 with no `WWW-Authenticate`, as the Alexa+ MCP toolkit expects.
+Leave the parameter empty to run the endpoint open (not recommended: Bedrock cost).
+
+Env added by the stack: `MCP_STATELESS=1` (no session ids, JSON responses), `MCP_BEARER_TOKEN`.
+Point the simulated Alexa+ at it with `MCP_URL=https://.../mcp` (add the header support if you want the sim remote).
+
 ## Test
 
 ```sh
@@ -35,7 +54,8 @@ docker run --rm -v "$PWD":/app -w /app node:22-alpine sh -c "npm install && npm 
 
 ## Layout
 
-- `src/server.ts` Express host, one Streamable HTTP transport per MCP session
+- `src/server.ts` wiring and listen; `src/app.ts` Express app, one Streamable HTTP transport per MCP session, or stateless JSON mode for Lambda, optional bearer token
+- `infra/app.ts` CDK stack (Lambda + Function URL + DynamoDB)
 - `src/tools/` MCP tools: `start_review`, `next_question`, `submit_answer`, `end_review`, `progress`, `explain`
 - `src/ui/` MCP Apps cards (`ui://scholia/progress-card`, `ui://scholia/session-card`): self-contained HTML with a plain postMessage bridge, linked from `progress` and `end_review` via `_meta.ui.resourceUri`. Hosts without the Apps extension fall back to the text result
 - `src/review/` session flow: queue due concepts, ask, grade, reschedule
