@@ -1,12 +1,13 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { Retriever } from "../retrieval/retriever.js";
 import type { ReviewService } from "../review/service.js";
 
 const courseId = z.string().describe("Course identifier, e.g. mit-6.0001");
 const learnerId = z.string().describe("Stable learner identifier");
 const sessionId = z.string().describe("Review session id returned by start_review");
 
-export function registerTools(server: McpServer, svc: ReviewService): void {
+export function registerTools(server: McpServer, svc: ReviewService, retriever: Retriever): void {
   server.registerTool(
     "start_review",
     {
@@ -82,6 +83,25 @@ export function registerTools(server: McpServer, svc: ReviewService): void {
           weak_topics: p.weakTopics,
           next_due: p.nextDue,
         },
+      };
+    },
+  );
+
+  server.registerTool(
+    "explain",
+    {
+      title: "Explain a concept from the course",
+      description:
+        "Short grounded explanation of a concept, taken from the course notes with a citation. Use when the learner asks what something means or gets a question wrong and wants to understand why.",
+      inputSchema: { course_id: courseId, concept: z.string().describe("Concept name or the learner's question, e.g. 'recursion' or 'why does my while loop never stop'") },
+    },
+    async ({ course_id, concept }) => {
+      const hits = await retriever.explain(course_id, concept);
+      if (hits.length === 0) return { content: [{ type: "text", text: `I have no notes for ${concept} in ${course_id}.` }], structuredContent: { passages: [] } };
+      const text = hits.map((h) => `${h.text} (${h.citation})`).join(" ");
+      return {
+        content: [{ type: "text", text }],
+        structuredContent: { passages: hits.map((h) => ({ concept: h.conceptId, heading: h.heading, text: h.text, citation: h.citation })) },
       };
     },
   );

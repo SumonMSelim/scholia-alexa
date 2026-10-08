@@ -3,6 +3,11 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { loadCourseChunks } from "./ingest/load.js";
+import { listCourses } from "./course/catalog.js";
+import { HashEmbedder } from "./retrieval/embedder.js";
+import { LocalVectorIndex } from "./retrieval/local.js";
+import { Retriever } from "./retrieval/retriever.js";
 import { ReviewService } from "./review/service.js";
 import { DynamoStore } from "./store/dynamo.js";
 import { MemoryStore } from "./store/memory.js";
@@ -21,9 +26,20 @@ async function buildStore(): Promise<LearnerStore> {
 
 const service = new ReviewService(await buildStore(), new KeywordTutor());
 
+async function buildRetriever(): Promise<Retriever> {
+  const retriever = new Retriever(new LocalVectorIndex(), new HashEmbedder());
+  for (const course of listCourses()) {
+    const chunks = await loadCourseChunks(course.id);
+    await retriever.ingest(chunks);
+    console.log(`Indexed ${chunks.length} chunks for ${course.id}`);
+  }
+  return retriever;
+}
+const retriever = await buildRetriever();
+
 function buildServer(): McpServer {
   const server = new McpServer({ name: "scholia", version: "0.1.0" });
-  registerTools(server, service);
+  registerTools(server, service, retriever);
   return server;
 }
 
