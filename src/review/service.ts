@@ -30,6 +30,13 @@ export interface AnswerResult {
   remaining: number;
 }
 
+export interface SessionSummary {
+  asked: number;
+  correct: number;
+  concepts: { id: string; name: string; grade: number }[];
+  nextReviewInDays: number;
+}
+
 export interface ProgressResult {
   courseId: string;
   learnerId: string;
@@ -135,6 +142,29 @@ export class ReviewService {
       citation: concept.citation,
       nextReviewInDays: state.intervalDays,
       remaining: session.queue.length,
+    };
+  }
+
+  /** Closes a session: drops any unasked concepts and summarises what was graded in it. */
+  async endReview(sessionId: string): Promise<SessionSummary> {
+    const session = await this.requireSession(sessionId);
+    const course = getCourse(session.courseId);
+    const names = new Map(course.concepts.map((c) => [c.id, c.name]));
+    const history = await this.store.listHistory(session.learnerId, session.courseId);
+    const graded = new Map<string, number>();
+    for (const h of history) if (h.at >= session.startedAt) graded.set(h.conceptId, h.grade);
+
+    session.queue = [];
+    session.current = undefined;
+    await this.store.putSession(session);
+
+    const records = await this.store.listConcepts(session.learnerId, session.courseId);
+    const soonest = records.filter((r) => graded.has(r.conceptId)).map((r) => r.intervalDays).sort((a, b) => a - b)[0] ?? 1;
+    return {
+      asked: session.asked,
+      correct: session.correct,
+      concepts: [...graded].map(([id, grade]) => ({ id, name: names.get(id) ?? id, grade })),
+      nextReviewInDays: soonest,
     };
   }
 

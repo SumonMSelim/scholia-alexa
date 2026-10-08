@@ -15,6 +15,7 @@ import type { LearnerStore } from "./store/types.js";
 import { registerTools } from "./tools/index.js";
 import { BedrockTutor } from "./tutor/bedrock.js";
 import { KeywordTutor } from "./tutor/keyword.js";
+import { registerCards } from "./ui/cards.js";
 import type { Tutor } from "./tutor/types.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
@@ -48,6 +49,7 @@ const service = new ReviewService(await buildStore(), buildTutor(), () => new Da
 function buildServer(): McpServer {
   const server = new McpServer({ name: "scholia", version: "0.1.0" });
   registerTools(server, service, retriever);
+  registerCards(server);
   return server;
 }
 

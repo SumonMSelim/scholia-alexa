@@ -20,7 +20,8 @@ docker run --rm -v "$PWD":/app -w /app node:22-alpine sh -c "npm install && npm 
 ## Layout
 
 - `src/server.ts` Express host, one Streamable HTTP transport per MCP session
-- `src/tools/` MCP tools: `start_review`, `next_question`, `submit_answer`, `progress`, `explain`
+- `src/tools/` MCP tools: `start_review`, `next_question`, `submit_answer`, `end_review`, `progress`, `explain`
+- `src/ui/` MCP Apps cards (`ui://scholia/progress-card`, `ui://scholia/session-card`): self-contained HTML with a plain postMessage bridge, linked from `progress` and `end_review` via `_meta.ui.resourceUri`. Hosts without the Apps extension fall back to the text result
 - `src/review/` session flow: queue due concepts, ask, grade, reschedule
 - `src/scheduler/sm2.ts` SM-2 spaced repetition
 - `src/store/` learner state: DynamoDB single table (`DynamoStore`) or in-memory (`STORE=memory`)
