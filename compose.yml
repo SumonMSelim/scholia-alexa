@@ -4,14 +4,16 @@ services:
     working_dir: /app
     volumes:
       - ./:/app
+      - ~/.aws:/root/.aws:ro
     ports:
       - "3000:3000"
     environment:
       PORT: "3000"
       DYNAMODB_ENDPOINT: http://dynamodb:8000
       AWS_REGION: us-east-1
-      AWS_ACCESS_KEY_ID: local
-      AWS_SECRET_ACCESS_KEY: local
+      AWS_PROFILE: ${AWS_PROFILE:-sumonmselim}
+      TUTOR: ${TUTOR:-bedrock}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.amazon.nova-pro-v1:0}
     command: sh -c "npm install && npm run dev"
     depends_on:
       - dynamodb

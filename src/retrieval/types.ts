@@ -21,4 +21,6 @@ export interface ScoredChunk {
 export interface VectorIndex {
   upsert(chunks: Chunk[], vectors: number[][]): Promise<void>;
   search(courseId: string, vector: number[], k: number): Promise<ScoredChunk[]>;
+  /** Every chunk of one concept, in source order. */
+  byConcept(courseId: string, conceptId: string): Promise<Chunk[]>;
 }

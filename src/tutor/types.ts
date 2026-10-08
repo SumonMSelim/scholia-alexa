@@ -12,8 +12,9 @@ export interface Grading {
   feedback: string;
 }
 
-/** Produces and grades questions. Stub now; Bedrock Nova later. */
+/** Produces and grades questions. KeywordTutor for tests, BedrockTutor for real use. */
 export interface Tutor {
-  generateQuestion(concept: Concept, priorGrades: number[]): Promise<GeneratedQuestion>;
+  /** passages: retrieved course notes for grounding; may be empty. */
+  generateQuestion(concept: Concept, priorGrades: number[], passages?: string[]): Promise<GeneratedQuestion>;
   grade(concept: Concept, question: GeneratedQuestion, answer: string): Promise<Grading>;
 }

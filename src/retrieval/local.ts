@@ -17,6 +17,10 @@ export class LocalVectorIndex implements VectorIndex {
     return out.sort((a, b) => b.score - a.score).slice(0, k);
   }
 
+  async byConcept(courseId: string, conceptId: string): Promise<Chunk[]> {
+    return [...this.rows.values()].map((r) => r.chunk).filter((c) => c.courseId === courseId && c.conceptId === conceptId);
+  }
+
   get size(): number {
     return this.rows.size;
   }

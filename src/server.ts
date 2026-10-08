@@ -13,7 +13,9 @@ import { DynamoStore } from "./store/dynamo.js";
 import { MemoryStore } from "./store/memory.js";
 import type { LearnerStore } from "./store/types.js";
 import { registerTools } from "./tools/index.js";
+import { BedrockTutor } from "./tutor/bedrock.js";
 import { KeywordTutor } from "./tutor/keyword.js";
+import type { Tutor } from "./tutor/types.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
@@ -23,8 +25,6 @@ async function buildStore(): Promise<LearnerStore> {
   if (process.env.DYNAMODB_ENDPOINT) await store.ensureTable();
   return store;
 }
-
-const service = new ReviewService(await buildStore(), new KeywordTutor());
 
 async function buildRetriever(): Promise<Retriever> {
   const retriever = new Retriever(new LocalVectorIndex(), new HashEmbedder());
@@ -36,6 +36,14 @@ async function buildRetriever(): Promise<Retriever> {
   return retriever;
 }
 const retriever = await buildRetriever();
+
+function buildTutor(): Tutor {
+  if (process.env.TUTOR === "bedrock") return new BedrockTutor();
+  console.log("TUTOR not set to bedrock, using KeywordTutor");
+  return new KeywordTutor();
+}
+
+const service = new ReviewService(await buildStore(), buildTutor(), () => new Date(), retriever);
 
 function buildServer(): McpServer {
   const server = new McpServer({ name: "scholia", version: "0.1.0" });

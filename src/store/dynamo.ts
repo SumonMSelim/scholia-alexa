@@ -25,7 +25,8 @@ export class DynamoStore implements LearnerStore {
 
   static fromEnv(): DynamoStore {
     const endpoint = process.env.DYNAMODB_ENDPOINT;
-    const client = new DynamoDBClient(endpoint ? { endpoint } : {});
+    // DynamoDB Local accepts any static key; keep the default chain free for Bedrock.
+    const client = new DynamoDBClient(endpoint ? { endpoint, credentials: { accessKeyId: "local", secretAccessKey: "local" } } : {});
     return new DynamoStore(client, process.env.TABLE_NAME ?? "scholia");
   }
 

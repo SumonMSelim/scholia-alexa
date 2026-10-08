@@ -24,7 +24,7 @@ docker run --rm -v "$PWD":/app -w /app node:22-alpine sh -c "npm install && npm 
 - `src/review/` session flow: queue due concepts, ask, grade, reschedule
 - `src/scheduler/sm2.ts` SM-2 spaced repetition
 - `src/store/` learner state: DynamoDB single table (`DynamoStore`) or in-memory (`STORE=memory`)
-- `src/tutor/` question generation and grading (`KeywordTutor` placeholder, Bedrock Nova next)
+- `src/tutor/` question generation and grading: `BedrockTutor` (Amazon Nova via Converse, grounded in course notes) or `KeywordTutor` for offline tests
 - `src/course/` course catalog with concepts and citations (MIT 6.0001 seed)
 - `src/ingest/` course notes (`courses/<id>/*.md`, frontmatter `concept` + `citation`) -> one chunk per `##` section
 - `src/retrieval/` local hashed-bag-of-words embedder and in-process cosine index; Titan v2 + S3 Vectors next
@@ -38,3 +38,6 @@ docker run --rm -v "$PWD":/app -w /app node:22-alpine sh -c "npm install && npm 
 | `STORE` | dynamo | `memory` for a stateless local run |
 | `DYNAMODB_ENDPOINT` | unset | set for DynamoDB Local; table is auto-created |
 | `TABLE_NAME` | `scholia` | |
+| `TUTOR` | keyword | `bedrock` to use Amazon Nova (compose default) |
+| `BEDROCK_MODEL_ID` | `us.amazon.nova-pro-v1:0` | any Nova inference profile id |
+| `AWS_PROFILE` | `sumonmselim` (compose) | compose mounts `~/.aws` read-only for Bedrock credentials |

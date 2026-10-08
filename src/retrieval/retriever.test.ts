@@ -26,6 +26,13 @@ describe("Retriever over MIT 6.0001 notes", () => {
     expect(top.text.length).toBeGreaterThan(50);
   });
 
+  it("notesFor returns every section of one concept", async () => {
+    const notes = await retriever.notesFor("mit-6.0001", "variables-and-types");
+    expect(notes).toHaveLength(3);
+    expect(notes[0]).toMatch(/^Objects, values and types: /);
+    expect(notes.join(" ")).not.toMatch(/indentation/);
+  });
+
   it("returns nothing for an unknown course", async () => {
     expect(await retriever.explain("nope", "recursion")).toEqual([]);
   });

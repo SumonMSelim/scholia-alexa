@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { getCourse } from "../course/catalog.js";
+import type { Retriever } from "../retrieval/retriever.js";
 import { isDue, mastery, newConceptState, review } from "../scheduler/sm2.js";
 import type { ConceptRecord, LearnerStore, ReviewSession } from "../store/types.js";
 import type { Tutor } from "../tutor/types.js";
@@ -46,6 +47,7 @@ export class ReviewService {
     private readonly store: LearnerStore,
     private readonly tutor: Tutor,
     private readonly now: () => Date = () => new Date(),
+    private readonly retriever?: Retriever,
   ) {}
 
   /** Builds a queue: overdue concepts first (most lapses first), then unseen concepts, capped at SESSION_SIZE. */
@@ -92,7 +94,8 @@ export class ReviewService {
     const concept = course.concepts.find((c) => c.id === conceptId)!;
     const history = await this.store.listHistory(session.learnerId, session.courseId);
     const priorGrades = history.filter((h) => h.conceptId === conceptId).map((h) => h.grade);
-    const generated = await this.tutor.generateQuestion(concept, priorGrades);
+    const passages = this.retriever ? await this.retriever.notesFor(session.courseId, concept.id) : [];
+    const generated = await this.tutor.generateQuestion(concept, priorGrades, passages);
 
     session.current = { conceptId, question: generated.question, reference: generated.reference, citation: concept.citation };
     await this.store.putSession(session);
