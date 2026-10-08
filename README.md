@@ -33,9 +33,10 @@ JSON mode) behind a Function URL, DynamoDB provisioned 5/5, Bedrock Nova invoke 
 in-process at cold start, so no vector service bill. Nothing in the stack costs money at hackathon traffic.
 
 ```sh
-# inside the dev container so no global installs are needed; ~/.aws is mounted read-only
-docker compose run --rm --no-deps dev npx cdk deploy ScholiaAlexa --require-approval never \
-  --parameters BearerToken="$(openssl rand -hex 24)"
+# Debian node image (CDK bundling needs bash); ~/.aws mounted read-only for credentials
+docker run --rm -v "$PWD":/app -w /app -v ~/.aws:/root/.aws:ro \
+  -e AWS_PROFILE=sumonmselim -e AWS_REGION=us-east-1 -e TOKEN="$(openssl rand -hex 24)" node:22 \
+  sh -c 'npx cdk deploy ScholiaAlexa --require-approval never --parameters BearerToken="$TOKEN"'
 ```
 
 The output `McpUrl` is the Streamable HTTP endpoint. Every call needs `Authorization: Bearer <token>`;
