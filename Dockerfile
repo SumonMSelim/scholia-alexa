@@ -15,5 +15,6 @@ COPY package.json package-lock.json* ./
 RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY courses ./courses
+COPY web ./web
 EXPOSE 3000
 CMD ["node", "dist/server.js"]

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Scholia on Alexa+ (simulated)</title>
+<style>
+  :root { --bg: #0f1419; --panel: #1a2129; --fg: #e9eef3; --muted: #8b98a5; --blue: #31c3ff; --ring: #243040; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 960px; margin: 0 auto; padding: 24px 16px; display: grid; grid-template-columns: 1fr 440px; gap: 24px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+  h1 { font-size: 18px; font-weight: 500; color: var(--muted); margin: 0 0 16px; }
+  #mic { width: 120px; height: 120px; border-radius: 50%; border: 0; background: radial-gradient(circle at 30% 30%, #2a3442, #121a22); box-shadow: 0 0 0 6px var(--ring); color: var(--fg); font-size: 15px; cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none; }
+  #mic.live { box-shadow: 0 0 0 6px var(--blue), 0 0 40px var(--blue); }
+  #mic:disabled { opacity: .5; cursor: wait; }
+  .hint { color: var(--muted); font-size: 13px; margin: 10px 0 20px; }
+  #log { display: flex; flex-direction: column; gap: 10px; }
+  .msg { padding: 10px 14px; border-radius: 14px; max-width: 90%; white-space: pre-wrap; }
+  .you { align-self: flex-end; background: #233447; }
+  .alexa { align-self: flex-start; background: var(--panel); border-left: 3px solid var(--blue); }
+  .tool { align-self: flex-start; color: var(--muted); font: 12px/1.4 ui-monospace, Menlo, monospace; }
+  #card { width: 100%; height: 0; border: 0; border-radius: 16px; background: #fffdf7; transition: height .2s; }
+  aside h2 { font-size: 13px; color: var(--muted); font-weight: 500; margin: 0 0 8px; text-transform: uppercase; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>Scholia on Alexa+ (simulated: Transcribe → Nova → MCP → Polly)</h1>
+    <button id="mic">Hold to talk</button>
+    <p class="hint">Try: "Alexa, review with Scholia", answer the question, "what does aliasing mean", "how am I doing", "stop the review".</p>
+    <div id="log"></div>
+  </section>
+  <aside>
+    <h2>Echo Show card</h2>
+    <iframe id="card" sandbox="allow-scripts" title="MCP App card"></iframe>
+  </aside>
+</main>
+<script>
+const conversation = crypto.randomUUID();
+const mic = document.getElementById("mic");
+const log = document.getElementById("log");
+const card = document.getElementById("card");
+let pendingCard = null;
+
+function add(cls, text) { const d = document.createElement("div"); d.className = "msg " + cls; d.textContent = text; log.appendChild(d); d.scrollIntoView({ block: "nearest" }); return d; }
+
+/* --- MCP Apps host side: answer ui/initialize, push tool-result after initialized, follow size-changed --- */
+window.addEventListener("message", (e) => {
+  const m = e.data; if (!m || m.jsonrpc !== "2.0" || e.source !== card.contentWindow) return;
+  if (m.method === "ui/initialize") {
+    e.source.postMessage({ jsonrpc: "2.0", id: m.id, result: { protocolVersion: "2025-06-18", hostCapabilities: {}, hostInfo: { name: "scholia-sim-alexa", version: "0.1.0" }, hostContext: { theme: "light" } } }, "*");
+  } else if (m.method === "ui/notifications/initialized" && pendingCard) {
+    e.source.postMessage({ jsonrpc: "2.0", method: "ui/notifications/tool-result", params: { content: [], structuredContent: pendingCard.structuredContent } }, "*");
+  } else if (m.method === "ui/notifications/size-changed") {
+    card.style.height = Math.min(600, m.params.height + 2) + "px";
+  } else if (m.id !== undefined && m.method) {
+    e.source.postMessage({ jsonrpc: "2.0", id: m.id, result: {} }, "*");
+  }
+});
+function showCard(c) { pendingCard = c; card.srcdoc = c.html; }
+
+/* --- Speech out --- */
+function play(b64) { return new Promise((r) => { const a = new Audio("data:audio/mpeg;base64," + b64); a.onended = r; a.onerror = r; a.play().catch(r); }); }
+
+/* --- Chat turn --- */
+async function send(text) {
+  add("you", text);
+  mic.disabled = true; mic.textContent = "Thinking";
+  try {
+    const res = await fetch("/chat", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ conversation, text }) });
+    const turn = await res.json();
+    if (turn.error) { add("alexa", "Error: " + turn.error); return; }
+    for (const t of turn.toolCalls) add("tool", "→ " + t.name + " " + JSON.stringify(t.args));
+    add("alexa", turn.speech);
+    if (turn.card) showCard(turn.card);
+    mic.textContent = "Speaking";
+    await play(turn.audio);
+  } finally { mic.disabled = false; mic.textContent = "Hold to talk"; }
+}
+
+/* --- Speech in: push-to-talk over WebSocket, PCM 16 kHz mono --- */
+let ctx, ws, stream, partialEl;
+async function start() {
+  stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true } });
+  ctx = new AudioContext({ sampleRate: 16000 });
+  const src = ctx.createMediaStreamSource(stream);
+  const proc = ctx.createScriptProcessor(4096, 1, 1);
+  ws = new WebSocket((location.protocol === "https:" ? "wss://" : "ws://") + location.host + "/stt");
+  ws.binaryType = "arraybuffer";
+  partialEl = add("you", "…");
+  ws.onmessage = (e) => {
+    const m = JSON.parse(e.data);
+    if (m.partial) partialEl.textContent = m.partial;
+    if (m.final !== undefined) { partialEl.remove(); if (m.final) send(m.final); else add("alexa", "I didn't catch that."); }
+    if (m.error) { partialEl.textContent = "STT error: " + m.error; }
+  };
+  await new Promise((r) => (ws.onopen = r));
+  proc.onaudioprocess = (e) => {
+    if (ws.readyState !== 1) return;
+    const f = e.inputBuffer.getChannelData(0);
+    const i16 = new Int16Array(f.length);
+    for (let i = 0; i < f.length; i++) i16[i] = Math.max(-32768, Math.min(32767, Math.round(f[i] * 32767)));
+    ws.send(i16.buffer);
+  };
+  src.connect(proc); proc.connect(ctx.destination);
+  mic.classList.add("live"); mic.textContent = "Listening";
+}
+function stop() {
+  mic.classList.remove("live"); mic.textContent = "Hold to talk";
+  if (ws && ws.readyState === 1) ws.send("end");
+  stream?.getTracks().forEach((t) => t.stop());
+  ctx?.close();
+}
+mic.addEventListener("pointerdown", (e) => { e.preventDefault(); if (!mic.disabled) start().catch((err) => add("alexa", "Mic error: " + err.message)); });
+mic.addEventListener("pointerup", stop);
+mic.addEventListener("pointerleave", () => mic.classList.contains("live") && stop());
+</script>
+</body>
+</html>
