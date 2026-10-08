@@ -28,7 +28,8 @@ services:
       - "3001:3001"
     environment:
       SIM_PORT: "3001"
-      MCP_URL: http://dev:3000/mcp
+      MCP_URL: ${MCP_URL:-http://dev:3000/mcp}
+      MCP_BEARER_TOKEN: ${MCP_BEARER_TOKEN:-}
       AWS_REGION: us-east-1
       AWS_PROFILE: ${AWS_PROFILE:-sumonmselim}
       BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.amazon.nova-pro-v1:0}

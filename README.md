@@ -43,7 +43,7 @@ without it the server answers 401 with no `WWW-Authenticate`, as the Alexa+ MCP 
 Leave the parameter empty to run the endpoint open (not recommended: Bedrock cost).
 
 Env added by the stack: `MCP_STATELESS=1` (no session ids, JSON responses), `MCP_BEARER_TOKEN`.
-Point the simulated Alexa+ at it with `MCP_URL=https://.../mcp` (add the header support if you want the sim remote).
+Point the simulated Alexa+ at it: `MCP_URL=https://.../mcp MCP_BEARER_TOKEN=<token> docker compose up sim`.
 
 ## Test
 

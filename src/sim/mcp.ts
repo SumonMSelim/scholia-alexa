@@ -15,9 +15,10 @@ export class McpSession {
 
   constructor(private readonly client: Client) {}
 
-  static async connect(url: string): Promise<McpSession> {
+  static async connect(url: string, bearerToken?: string): Promise<McpSession> {
     const client = new Client({ name: "scholia-sim-alexa", version: "0.1.0" }, { capabilities: UI_CAPABILITY });
-    await client.connect(new StreamableHTTPClientTransport(new URL(url)));
+    const requestInit = bearerToken ? { headers: { authorization: `Bearer ${bearerToken}` } } : undefined;
+    await client.connect(new StreamableHTTPClientTransport(new URL(url), { requestInit }));
     return new McpSession(client);
   }
 

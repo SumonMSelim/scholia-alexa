@@ -9,6 +9,7 @@ import { synthesize, Transcription } from "./speech.js";
 
 const PORT = Number(process.env.SIM_PORT ?? 3001);
 const MCP_URL = process.env.MCP_URL ?? "http://localhost:3000/mcp";
+const MCP_BEARER_TOKEN = process.env.MCP_BEARER_TOKEN || undefined;
 const LEARNER = process.env.LEARNER_ID ?? "demo-learner";
 const COURSE = process.env.COURSE_ID ?? "mit-6.0001";
 
@@ -21,7 +22,7 @@ const brains = new Map<string, Brain>();
 async function brainFor(id: string): Promise<Brain> {
   let b = brains.get(id);
   if (!b) {
-    b = new Brain(await McpSession.connect(MCP_URL), LEARNER, COURSE);
+    b = new Brain(await McpSession.connect(MCP_URL, MCP_BEARER_TOKEN), LEARNER, COURSE);
     brains.set(id, b);
   }
   return b;
