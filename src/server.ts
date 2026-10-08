@@ -3,13 +3,27 @@ import express from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
+import { ReviewService } from "./review/service.js";
+import { DynamoStore } from "./store/dynamo.js";
+import { MemoryStore } from "./store/memory.js";
+import type { LearnerStore } from "./store/types.js";
 import { registerTools } from "./tools/index.js";
+import { KeywordTutor } from "./tutor/keyword.js";
 
 const PORT = Number(process.env.PORT ?? 3000);
 
+async function buildStore(): Promise<LearnerStore> {
+  if (process.env.STORE === "memory") return new MemoryStore();
+  const store = DynamoStore.fromEnv();
+  if (process.env.DYNAMODB_ENDPOINT) await store.ensureTable();
+  return store;
+}
+
+const service = new ReviewService(await buildStore(), new KeywordTutor());
+
 function buildServer(): McpServer {
   const server = new McpServer({ name: "scholia", version: "0.1.0" });
-  registerTools(server);
+  registerTools(server, service);
   return server;
 }
 

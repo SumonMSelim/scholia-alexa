@@ -13,6 +13,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1147.0",
+    "@aws-sdk/lib-dynamodb": "^3.1147.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "express": "^5.1.0",
     "zod": "^3.25.0"

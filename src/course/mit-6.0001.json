@@ -1,0 +1,83 @@
+{
+  "id": "mit-6.0001",
+  "title": "MIT 6.0001 Introduction to Computer Science and Programming in Python",
+  "concepts": [
+    {
+      "id": "variables-and-types",
+      "name": "variables and types",
+      "summary": "A variable is a name bound to a value in memory. Python objects have types such as int, float, bool and str, and the type decides which operations are valid. Assignment with = binds a name to a value; rebinding changes what the name points to.",
+      "citation": "Lecture 1, Guttag ch. 2.1",
+      "keywords": ["name", "bound", "value", "type", "int", "float", "assignment", "bind"]
+    },
+    {
+      "id": "branching",
+      "name": "branching with if, elif and else",
+      "summary": "Branching lets a program choose a path based on a boolean condition. if tests a condition, elif tests another only when earlier ones were false, and else runs when none matched. Indentation defines the block that belongs to each branch.",
+      "citation": "Lecture 2, Guttag ch. 2.2",
+      "keywords": ["condition", "boolean", "if", "elif", "else", "indentation", "block"]
+    },
+    {
+      "id": "iteration",
+      "name": "iteration with while and for loops",
+      "summary": "A while loop repeats its body as long as a condition is true, so the body must change something the condition depends on or it never ends. A for loop iterates over a sequence such as range(n), running once per item. break exits the innermost loop early.",
+      "citation": "Lecture 2, Guttag ch. 2.3",
+      "keywords": ["while", "for", "condition", "range", "repeat", "break", "sequence"]
+    },
+    {
+      "id": "string-indexing",
+      "name": "string indexing and slicing",
+      "summary": "Strings are ordered sequences of characters. Indexing s[i] gives one character, starting at 0, and negative indices count from the end. Slicing s[start:stop:step] returns a new substring from start up to but not including stop. Strings are immutable.",
+      "citation": "Lecture 3, Guttag ch. 2.4",
+      "keywords": ["index", "zero", "negative", "slice", "stop", "immutable", "substring"]
+    },
+    {
+      "id": "bisection-search",
+      "name": "bisection search",
+      "summary": "Bisection search finds a value by repeatedly halving the search interval: guess the midpoint, compare, then keep the half that must contain the answer. Each step halves the space, so it takes about log2(n) steps, far fewer than exhaustive enumeration.",
+      "citation": "Lecture 3, Guttag ch. 3.3",
+      "keywords": ["halve", "midpoint", "interval", "log", "guess", "compare", "faster"]
+    },
+    {
+      "id": "functions-and-scope",
+      "name": "functions, parameters and scope",
+      "summary": "A function packages code under a name with formal parameters; calling it binds actual arguments to those parameters in a new local scope. Names assigned inside the function are local and vanish when it returns. return hands a value back to the caller; without return a function gives None.",
+      "citation": "Lecture 4, Guttag ch. 4.1",
+      "keywords": ["parameter", "argument", "scope", "local", "return", "None", "call"]
+    },
+    {
+      "id": "recursion",
+      "name": "recursion",
+      "summary": "A recursive function solves a problem by calling itself on a smaller version of the same problem. It needs a base case that returns directly and a recursive step that reduces toward the base case, otherwise the recursion never terminates.",
+      "citation": "Lecture 6, Guttag ch. 4.3",
+      "keywords": ["base case", "recursive", "smaller", "calls itself", "terminate", "reduce"]
+    },
+    {
+      "id": "tuples",
+      "name": "tuples",
+      "summary": "A tuple is an ordered, immutable sequence of elements that can hold mixed types. Tuples can be indexed and sliced like strings and are often used to return several values from one function. Because they are immutable they are safe to use as dictionary keys.",
+      "citation": "Lecture 5, Guttag ch. 5.1",
+      "keywords": ["immutable", "ordered", "mixed", "return multiple", "key", "sequence"]
+    },
+    {
+      "id": "lists-and-mutation",
+      "name": "lists and mutation",
+      "summary": "A list is an ordered, mutable sequence. Methods like append, extend, remove and pop change the list in place and return None or the removed item, not a new list. Mutation means every name bound to that list object sees the change.",
+      "citation": "Lecture 5, Guttag ch. 5.2",
+      "keywords": ["mutable", "append", "in place", "None", "ordered", "change"]
+    },
+    {
+      "id": "aliasing",
+      "name": "aliasing and cloning",
+      "summary": "Aliasing happens when two names are bound to the same mutable object, so mutating through one name changes what the other sees. Cloning with a slice like lst[:] or list(lst) makes an independent copy. Never mutate a list while iterating over it; iterate over a clone instead.",
+      "citation": "Lecture 5, Guttag ch. 5.3",
+      "keywords": ["alias", "same object", "clone", "copy", "slice", "iterate", "side effect"]
+    },
+    {
+      "id": "dictionaries",
+      "name": "dictionaries",
+      "summary": "A dictionary maps keys to values with no inherent order. Keys must be immutable and unique; values can be anything. Lookup, insertion and deletion by key are fast, which makes dictionaries ideal for counting and memoization.",
+      "citation": "Lecture 6, Guttag ch. 5.6",
+      "keywords": ["key", "value", "map", "immutable", "unique", "lookup", "fast", "memo"]
+    }
+  ]
+}
