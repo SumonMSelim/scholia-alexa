@@ -72,8 +72,8 @@ export function registerTools(server: McpServer, svc: ReviewService, retriever: 
       const weak = p.weakTopics.length ? ` Weak spots: ${p.weakTopics.join(", ")}.` : "";
       const text =
         p.conceptsTracked === 0
-          ? `No reviews yet in ${title}. Say "start a review" to begin.`
-          : `You've covered ${p.conceptsTracked} of ${p.conceptsTotal} concepts at ${pct}% mastery. ${p.dueNow} due now. Streak: ${p.streakDays} days.${weak}`;
+          ? `Nothing reviewed yet in ${title}. Answer a few questions and your progress shows up here.`
+          : `You've covered ${p.conceptsTracked} of ${p.conceptsTotal} concepts at ${pct}% mastery. ${p.dueNow} due now. Streak: ${p.streakDays} ${p.streakDays === 1 ? "day" : "days"}.${weak}`;
       return {
         content: [{ type: "text", text }],
         _meta: uiMeta(PROGRESS_CARD, "Checking your progress", "Your progress"),

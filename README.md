@@ -73,7 +73,8 @@ Jump ahead in time against the same learner data (used in the demo video):
 
 ## Simulated Alexa+ (demo client)
 
-`docker compose up` also starts the simulated Alexa+ at http://localhost:3001. Hold the button and talk:
+`docker compose up` also starts the simulated Alexa+ at http://localhost:3001, drawn as an Echo Show. Hold the
+mic button or Space and talk, or type or tap a phrase to test without a microphone. Behind it:
 mic audio streams to Amazon Transcribe over a WebSocket, the transcript goes to Amazon Nova (Bedrock Converse,
 tool use) which drives the Scholia MCP server through a real Streamable HTTP MCP client, the reply is spoken by
 Amazon Polly, and any `_meta.ui` card is rendered in a sandboxed iframe through the MCP Apps bridge.
@@ -82,7 +83,7 @@ Amazon Polly, and any `_meta.ui` card is rendered in a sandboxed iframe through 
 - `src/sim/brain.ts` the "Alexa" loop: Converse tool-use rounds until the model speaks
 - `src/sim/speech.ts` Transcribe streaming (push-to-talk) and Polly
 - `src/sim/server.ts` `/chat`, `/stt` WebSocket, static `web/`
-- `web/index.html` Echo Show style page with the MCP Apps host bridge
+- `web/index.html` Echo Show style page: device screen with cards, captions and light bar, MCP Apps host bridge, tool-call panel
 
 Env for the sim: `MCP_URL` (default `http://localhost:3000/mcp`), `SIM_PORT` (3001), `LEARNER_ID` (`demo-learner`),
 `COURSE_ID` (`mit-6.0001`), `POLLY_VOICE` (`Joanna`), `BEDROCK_MODEL_ID`.

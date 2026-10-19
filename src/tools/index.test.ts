@@ -44,7 +44,17 @@ describe("progress", () => {
   it("names the course by title, not id, in speech and card data", async () => {
     const client = await connect();
     const r = await client.callTool({ name: "progress", arguments: { course_id: "mit-6.0001", learner_id: "new" } });
-    expect((r.content as { text: string }[])[0].text).toMatch(/^No reviews yet in MIT 6\.0001 Introduction/);
+    expect((r.content as { text: string }[])[0].text).toMatch(/^Nothing reviewed yet in MIT 6\.0001 Introduction/);
     expect((r.structuredContent as { course_title: string }).course_title).toBe("MIT 6.0001 Introduction to Computer Science and Programming in Python");
+  });
+
+  it("says 1 day, not 1 days, for a one-day streak", async () => {
+    const client = await connect();
+    const start = await client.callTool({ name: "start_review", arguments: { course_id: "mit-6.0001", learner_id: "s1" } });
+    const sessionId = (start.structuredContent as { session_id: string }).session_id;
+    await client.callTool({ name: "next_question", arguments: { session_id: sessionId } });
+    await client.callTool({ name: "submit_answer", arguments: { session_id: sessionId, answer: "a name bound to a value with a type like int" } });
+    const r = await client.callTool({ name: "progress", arguments: { course_id: "mit-6.0001", learner_id: "s1" } });
+    expect((r.content as { text: string }[])[0].text).toContain("Streak: 1 day.");
   });
 });

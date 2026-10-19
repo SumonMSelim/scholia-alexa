@@ -69,7 +69,7 @@ describe("Brain", () => {
     expect(second.system?.[0].text).toContain('"demo"');
     const toolResult = second.messages?.at(-1)?.content?.[0].toolResult;
     expect(toolResult?.toolUseId).toBe("t1");
-    expect(toolResult?.content?.[0].text).toMatch(/No reviews yet/);
+    expect(toolResult?.content?.[0].text).toMatch(/Nothing reviewed yet/);
     expect(toolResult?.content?.[0].text).toContain('"concepts_total":11');
     expect(toolResult?.content).toHaveLength(1);
     expect(second.inferenceConfig?.maxTokens).toBe(400);

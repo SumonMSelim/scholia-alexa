@@ -62,6 +62,20 @@ li { display: flex; justify-content: space-between; padding: 6px 0; border-top: 
 .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
 .ok { background: var(--ok); } .warn { background: var(--warn); } .bad { background: var(--bad); }
 .foot { margin-top: 12px; color: var(--muted); font-size: 13px; }
+/* Echo Show and other full-screen hosts: read from across the room. */
+@media (min-width: 600px) {
+  body { padding: 28px 36px; font-size: 20px; }
+  h1 { font-size: 30px; }
+  .sub { font-size: 18px; margin-bottom: 20px; }
+  .row { gap: 40px; }
+  .stat b { font-size: 46px; }
+  .stat span { font-size: 16px; }
+  .ring { width: 150px; height: 150px; }
+  .ring div { width: 116px; height: 116px; font-size: 28px; }
+  li { padding: 10px 0; }
+  .dot { width: 14px; height: 14px; }
+  .foot { font-size: 16px; margin-top: 20px; }
+}
 `;
 
 function page(title: string, body: string, script: string): string {
