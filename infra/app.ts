@@ -17,8 +17,9 @@ class ScholiaAlexaStack extends Stack {
     const bearerToken = new CfnParameter(this, "BearerToken", {
       type: "String",
       noEcho: true,
-      default: "",
-      description: "Optional. When set, /mcp requires Authorization: Bearer <token>.",
+      // No default: an empty token would leave a public URL that spends Bedrock tokens for anyone.
+      minLength: 32,
+      description: "Required. /mcp requires Authorization: Bearer <token>.",
     });
 
     const table = new dynamodb.Table(this, "Learners", {

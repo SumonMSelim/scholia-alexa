@@ -33,18 +33,20 @@ JSON mode) behind a Function URL, DynamoDB provisioned 5/5, Bedrock Nova invoke 
 in-process at cold start, so no vector service bill. Nothing in the stack costs money at hackathon traffic.
 
 ```sh
+# keep the token in a gitignored file; the sim and any client need it later
+[ -s .mcp-token ] || openssl rand -hex 24 > .mcp-token
 # Debian node image (CDK bundling needs bash); ~/.aws mounted read-only for credentials
 docker run --rm -v "$PWD":/app -w /app -v ~/.aws:/root/.aws:ro \
-  -e AWS_PROFILE=sumonmselim -e AWS_REGION=us-east-1 -e TOKEN="$(openssl rand -hex 24)" node:22 \
-  sh -c 'npx cdk deploy ScholiaAlexa --require-approval never --parameters BearerToken="$TOKEN"'
+  -e AWS_PROFILE=sumonmselim -e AWS_REGION=us-east-1 -e TOKEN="$(command cat .mcp-token)" node:22 \
+  sh -c 'npx cdk deploy ScholiaAlexa --require-approval never --parameters BearerToken="$TOKEN" --outputs-file cdk.out/outputs.json'
 ```
 
 The output `McpUrl` is the Streamable HTTP endpoint. Every call needs `Authorization: Bearer <token>`;
 without it the server answers 401 with no `WWW-Authenticate`, as the Alexa+ MCP toolkit expects.
-Leave the parameter empty to run the endpoint open (not recommended: Bedrock cost).
+The parameter is required (min 32 chars), so the public URL never runs open and spends Bedrock tokens.
 
 Env added by the stack: `MCP_STATELESS=1` (no session ids, JSON responses), `MCP_BEARER_TOKEN`.
-Point the simulated Alexa+ at it: `MCP_URL=https://.../mcp MCP_BEARER_TOKEN=<token> docker compose up sim`.
+Point the simulated Alexa+ at it: `MCP_URL=https://.../mcp MCP_BEARER_TOKEN="$(command cat .mcp-token)" docker compose up sim`.
 
 ## Test
 
