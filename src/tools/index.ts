@@ -45,7 +45,7 @@ export function registerTools(server: McpServer, svc: ReviewService, retriever: 
     "submit_answer",
     {
       title: "Submit the learner's answer",
-      description: "Grade the learner's spoken answer to the current question, update their memory schedule, and return feedback with a course citation.",
+      description: "Grade the learner's spoken answer to the current question, update their memory schedule, and return feedback with a course citation. Then call next_question in the same turn (unless remaining is 0) so the feedback and the next question are spoken together.",
       inputSchema: { session_id: sessionId, answer: z.string().describe("The learner's answer, transcribed") },
     },
     async ({ session_id, answer }) => {
