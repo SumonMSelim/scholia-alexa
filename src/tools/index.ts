@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { getCourse } from "../course/catalog.js";
 import type { Retriever } from "../retrieval/retriever.js";
 import type { ReviewService } from "../review/service.js";
 import { PROGRESS_CARD, SESSION_CARD, uiMeta } from "../ui/cards.js";
@@ -66,17 +67,19 @@ export function registerTools(server: McpServer, svc: ReviewService, retriever: 
     },
     async ({ course_id, learner_id }) => {
       const p = await svc.progress(learner_id, course_id);
+      const title = getCourse(course_id).title;
       const pct = Math.round(p.mastery * 100);
       const weak = p.weakTopics.length ? ` Weak spots: ${p.weakTopics.join(", ")}.` : "";
       const text =
         p.conceptsTracked === 0
-          ? `No reviews yet in ${course_id}. Say "start a review" to begin.`
+          ? `No reviews yet in ${title}. Say "start a review" to begin.`
           : `You've covered ${p.conceptsTracked} of ${p.conceptsTotal} concepts at ${pct}% mastery. ${p.dueNow} due now. Streak: ${p.streakDays} days.${weak}`;
       return {
         content: [{ type: "text", text }],
         _meta: uiMeta(PROGRESS_CARD, "Checking your progress", "Your progress"),
         structuredContent: {
           course_id: p.courseId,
+          course_title: title,
           learner_id: p.learnerId,
           concepts_tracked: p.conceptsTracked,
           concepts_total: p.conceptsTotal,

@@ -10,13 +10,18 @@ import { MemoryStore } from "../store/memory.js";
 import { KeywordTutor } from "../tutor/keyword.js";
 import { registerTools } from "./index.js";
 
-async function endAfter(answer: string) {
+async function connect() {
   const server = new McpServer({ name: "t", version: "0" });
   registerTools(server, new ReviewService(new MemoryStore(), new KeywordTutor()), new Retriever(new LocalVectorIndex(), new HashEmbedder()));
   const [c, s] = InMemoryTransport.createLinkedPair();
   await server.connect(s);
   const client = new Client({ name: "test", version: "0" });
   await client.connect(c);
+  return client;
+}
+
+async function endAfter(answer: string) {
+  const client = await connect();
   const start = await client.callTool({ name: "start_review", arguments: { course_id: "mit-6.0001", learner_id: "l1" } });
   const sessionId = (start.structuredContent as { session_id: string }).session_id;
   await client.callTool({ name: "next_question", arguments: { session_id: sessionId } });
@@ -32,5 +37,14 @@ describe("end_review wording", () => {
 
   it("does not praise a session with no good answers", async () => {
     expect(await endAfter("no idea")).toMatch(/^Good effort, these will stick with practice\. 0 of 1/);
+  });
+});
+
+describe("progress", () => {
+  it("names the course by title, not id, in speech and card data", async () => {
+    const client = await connect();
+    const r = await client.callTool({ name: "progress", arguments: { course_id: "mit-6.0001", learner_id: "new" } });
+    expect((r.content as { text: string }[])[0].text).toMatch(/^No reviews yet in MIT 6\.0001 Introduction/);
+    expect((r.structuredContent as { course_title: string }).course_title).toBe("MIT 6.0001 Introduction to Computer Science and Programming in Python");
   });
 });

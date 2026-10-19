@@ -1,5 +1,5 @@
 import { PollyClient, SynthesizeSpeechCommand } from "@aws-sdk/client-polly";
-import { StartStreamTranscriptionCommand, TranscribeStreamingClient } from "@aws-sdk/client-transcribe-streaming";
+import { StartStreamTranscriptionCommand, TranscribeStreamingClient, type TranscriptResultStream } from "@aws-sdk/client-transcribe-streaming";
 
 export const SAMPLE_RATE = 16000;
 
@@ -12,14 +12,23 @@ export async function synthesize(text: string, voiceId = process.env.POLLY_VOICE
   return res.AudioStream ? await res.AudioStream.transformToByteArray() : new Uint8Array();
 }
 
+export interface StreamingClient {
+  send(cmd: StartStreamTranscriptionCommand): Promise<{ TranscriptResultStream?: AsyncIterable<TranscriptResultStream> }>;
+}
+
 /** Push-to-talk transcription: feed PCM 16 kHz mono chunks, end with close(), await the final text. */
 export class Transcription {
   private readonly queue: (Uint8Array | null)[] = [];
   private wake: (() => void) | undefined;
   private finalParts: string[] = [];
+  /** Last partial not yet finalised; a short press can end the stream before Transcribe emits a final result. */
+  private pending = "";
   readonly done: Promise<string>;
 
-  constructor(private readonly onPartial: (text: string) => void) {
+  constructor(
+    private readonly onPartial: (text: string) => void,
+    private readonly client: StreamingClient = transcribe,
+  ) {
     this.done = this.run();
   }
 
@@ -43,7 +52,7 @@ export class Transcription {
   }
 
   private async run(): Promise<string> {
-    const res = await transcribe.send(
+    const res = await this.client.send(
       new StartStreamTranscriptionCommand({
         LanguageCode: "en-US",
         MediaEncoding: "pcm",
@@ -55,10 +64,15 @@ export class Transcription {
       for (const r of event.TranscriptEvent?.Transcript?.Results ?? []) {
         const text = r.Alternatives?.[0]?.Transcript ?? "";
         if (!text) continue;
-        if (r.IsPartial) this.onPartial([...this.finalParts, text].join(" "));
-        else this.finalParts.push(text);
+        if (r.IsPartial) {
+          this.pending = text;
+          this.onPartial([...this.finalParts, text].join(" "));
+        } else {
+          this.pending = "";
+          this.finalParts.push(text);
+        }
       }
     }
-    return this.finalParts.join(" ").trim();
+    return [...this.finalParts, this.pending].join(" ").trim();
   }
 }

@@ -78,7 +78,7 @@ function render(d) {
   const weak = (d.weak_topics || []).map((t) => '<li><span><i class="dot warn"></i>' + esc(t) + '</span><span>needs work</span></li>').join("");
   const next = d.next_due ? new Date(d.next_due).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" }) : "nothing scheduled";
   document.getElementById("root").innerHTML =
-    '<h1>' + esc(d.course_id || "Course") + '</h1><p class="sub">' + esc(d.concepts_tracked || 0) + ' of ' + esc(d.concepts_total || 0) + ' concepts started</p>' +
+    '<h1>' + esc(d.course_title || d.course_id || "Course") + '</h1><p class="sub">' + esc(d.concepts_tracked || 0) + ' of ' + esc(d.concepts_total || 0) + ' concepts started</p>' +
     '<div class="row"><div class="ring" style="--pct:' + pct + '"><div>' + pct + '%</div></div>' +
     '<div class="stat"><b>' + esc(d.due_now || 0) + '</b><span>due now</span></div>' +
     '<div class="stat"><b>' + esc(d.streak_days || 0) + '</b><span>day streak</span></div></div>' +
