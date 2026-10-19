@@ -123,7 +123,7 @@ export function registerTools(server: McpServer, svc: ReviewService, retriever: 
       const text =
         r.asked === 0
           ? "We did not get to any questions this time. Come back when you have a few minutes."
-          : `Nice work. ${r.correct} of ${r.asked} answered well. I'll check in again ${when}.`;
+          : `${r.correct * 2 >= r.asked ? "Nice work." : "Good effort, these will stick with practice."} ${r.correct} of ${r.asked} answered well. I'll check in again ${when}.`;
       return {
         content: [{ type: "text", text }],
         _meta: uiMeta(SESSION_CARD, "Wrapping up", "Review summary"),

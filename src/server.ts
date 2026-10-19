@@ -37,8 +37,11 @@ function buildTutor(): Tutor {
   return new KeywordTutor();
 }
 
+// Demo only: shifts "now" so a recording can jump ahead to the next due review against the same data.
+const clockOffsetMs = Number(process.env.CLOCK_OFFSET_DAYS ?? 0) * 86_400_000;
+
 const retriever = await buildRetriever();
-const service = new ReviewService(await buildStore(), buildTutor(), () => new Date(), retriever);
+const service = new ReviewService(await buildStore(), buildTutor(), () => new Date(Date.now() + clockOffsetMs), retriever);
 const stateless = process.env.MCP_STATELESS === "1";
 const app = buildApp({ service, retriever, stateless, bearerToken: process.env.MCP_BEARER_TOKEN || undefined });
 
