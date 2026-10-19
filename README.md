@@ -1,14 +1,75 @@
 # Scholia for Alexa+
 
-Course-grounded voice tutor that remembers the learner. An MCP server (spec 2025-11-25, Streamable HTTP)
-that schedules spaced retrieval before you forget, grades answers, and explains misses from course material with citations.
+> Scholia remembers what you forget, before you forget it.
+
+A course-grounded voice tutor for Alexa+. Say "review with Scholia" and it quizzes you on the concepts you are
+about to forget, grades your spoken answer, explains misses from the course notes with a citation, and shows a
+progress card. Next session it knows what to ask.
+
+Built for the Alexa+ track as a self-hosted MCP server (spec 2025-11-25, Streamable HTTP), plus a simulated
+Alexa+ voice client that drives it end to end through a real MCP client.
+
+## What it does
+
+- **Remembers each learner across sessions.** Per-concept SM-2 schedule (ease, interval, due date, lapses) and
+  answer history in DynamoDB. A miss today comes back tomorrow; a strong answer waits longer.
+- **Asks grounded questions.** Amazon Nova writes each question from the course notes for that concept and takes
+  past grades into account.
+- **Grades free-form spoken answers** 0-5 with short feedback meant to be heard, plus a citation
+  (MIT OCW 6.0001 lecture, Guttag chapter).
+- **Explains any concept** from the course notes, with sources. Answers only from the course.
+- **Shows MCP Apps cards.** Progress card (mastery, streak, weak spots, next due) and session summary card as
+  `ui://` resources. Hosts without MCP Apps get the same content as text.
+- **Runs by voice.** The simulated Alexa+ streams mic audio to Amazon Transcribe, lets Amazon Nova orchestrate the
+  MCP tools, and answers with Amazon Polly.
+
+## How it works
+
+```
+ Alexa+, or the simulated Alexa+ (web/, src/sim/)
+   mic -> Amazon Transcribe -> Amazon Nova, tool use -> Amazon Polly -> speaker
+                                    |                \
+                                    |                 MCP Apps card in a sandboxed iframe
+                                    | MCP Streamable HTTP, POST /mcp, bearer token
+                                    v
+ Scholia MCP server (src/), on Lambda + Function URL via Lambda Web Adapter
+   tools: start_review  next_question  submit_answer  end_review  progress  explain
+   |-- review/ + scheduler/sm2.ts -> Amazon DynamoDB (learner model, sessions, history)
+   |-- tutor/bedrock.ts           -> Amazon Nova Pro on Bedrock (question generation, grading)
+   |-- retrieval/ in-process      <- courses/*.md (cited study notes, indexed at cold start)
+   `-- ui/cards.ts                -> ui://scholia/progress-card, ui://scholia/session-card
+```
+
+A review: `start_review` queues due concepts (most lapses first, then oldest due) and fills up with new ones; `next_question`
+asks Nova for one question plus a hidden reference answer from that concept's notes; `submit_answer` grades the
+answer against the reference, applies SM-2, writes history and returns spoken feedback with a citation;
+`end_review` returns the summary card; `progress` returns the progress card.
+
+| AWS service | Used for |
+|---|---|
+| Amazon Bedrock, Nova Pro (Converse API, tool use) | question generation, grading, the "Alexa" brain in the simulator |
+| Amazon DynamoDB | learner model, sessions, answer history (single table) |
+| AWS Lambda + Function URL + Lambda Web Adapter | hosts the unchanged Express MCP server |
+| Amazon Transcribe streaming | push-to-talk speech to text in the simulator |
+| Amazon Polly (neural) | spoken replies in the simulator |
+| AWS CDK | the whole stack as code (`infra/app.ts`) |
+
+Cost was a design input: no NAT, ALB, OpenSearch or vector service. DynamoDB provisioned 5/5 and Lambda stay in
+the free tier; Bedrock calls always set `maxTokens`.
 
 ## Run
 
 ```sh
-docker compose up
-# server: http://localhost:3000/mcp   health: http://localhost:3000/healthz
+# offline, no AWS account: keyword grader, DynamoDB Local
+TUTOR=keyword docker compose up dev dynamodb
+
+# full: Nova grading + simulated Alexa+ (needs AWS credentials with Nova, Transcribe and Polly access)
+AWS_PROFILE=<your profile> docker compose up
+# server: http://localhost:3000/mcp   health: http://localhost:3000/healthz   simulator: http://localhost:3001
 ```
+
+Jump ahead in time against the same learner data (used in the demo video):
+`CLOCK_OFFSET_DAYS=3 docker compose up -d dev`.
 
 ## Simulated Alexa+ (demo client)
 
@@ -67,7 +128,7 @@ docker run --rm -v "$PWD":/app -w /app node:22-alpine sh -c "npm install && npm 
 - `src/tutor/` question generation and grading: `BedrockTutor` (Amazon Nova via Converse, grounded in course notes) or `KeywordTutor` for offline tests
 - `src/course/` course catalog with concepts and citations (MIT 6.0001 seed)
 - `src/ingest/` course notes (`courses/<id>/*.md`, frontmatter `concept` + `citation`) -> one chunk per `##` section
-- `src/retrieval/` local hashed-bag-of-words embedder and in-process cosine index; Titan v2 + S3 Vectors next
+- `src/retrieval/` local hashed-bag-of-words embedder and in-process cosine index (no vector service to pay for); questions are grounded by concept id, `explain` by similarity
 - `courses/` own study notes per concept, cited to MIT OCW 6.0001 lectures and Guttag's textbook
 
 ## Env
@@ -80,4 +141,17 @@ docker run --rm -v "$PWD":/app -w /app node:22-alpine sh -c "npm install && npm 
 | `TABLE_NAME` | `scholia` | |
 | `TUTOR` | keyword | `bedrock` to use Amazon Nova (compose default) |
 | `BEDROCK_MODEL_ID` | `us.amazon.nova-pro-v1:0` | any Nova inference profile id |
-| `AWS_PROFILE` | `sumonmselim` (compose) | compose mounts `~/.aws` read-only for Bedrock credentials |
+| `AWS_PROFILE` | `sumonmselim` (compose) | compose mounts `~/.aws` read-only for AWS credentials; set your own |
+| `CLOCK_OFFSET_DAYS` | `0` | demo only: shifts the server clock forward |
+| `MCP_STATELESS` | unset | `1`: no MCP sessions, JSON responses (Lambda) |
+| `MCP_BEARER_TOKEN` | unset | when set, `/mcp` requires `Authorization: Bearer <token>` |
+
+## Status and limits
+
+- Not registered as a live Alexa+ add-on yet: that needs OAuth 2.1 account linking, which this build does not
+  implement (single bearer token, one demo learner). The simulated Alexa+ is the demo path the rules allow.
+- One course (MIT 6.0001 subset, 11 concepts). Notes are our own summaries, cited to the public course.
+
+## License
+
+MIT, see [LICENSE](LICENSE).
