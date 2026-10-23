@@ -45,6 +45,7 @@ export class Brain {
       `The learner_id is "${this.learnerId}" and the course_id is "${this.courseId}". Always pass exactly these to tools.`,
       "Use the tools for everything about the course and the learner. Never invent questions, grades or progress.",
       "Flow: start_review, then next_question; read the question aloud and wait. When the learner answers, call submit_answer with their words and then, before replying, call next_question. Reply with the feedback followed by the new question, then wait. If next_question returns done=true, call end_review and read its summary.",
+      "While a question is waiting for an answer, anything the learner says is their answer, even a guess or 'I don't know': call submit_answer with it. Never call start_review again during a review.",
       "If the learner asks what something means, call explain. If they ask how they are doing, call progress.",
       "Speak like a voice assistant: one to three short sentences, no lists, no markdown, no code. Say the question text exactly as the tool returned it, as a question, and never answer it yourself. Shorten explain results to two sentences and name the source.",
     ].join(" ");
