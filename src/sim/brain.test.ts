@@ -80,6 +80,38 @@ describe("Brain", () => {
     expect(stripThinking("plain")).toBe("plain");
   });
 
+  it("speaks the tool question verbatim when the model restates it as an answer", async () => {
+    // Model calls tools, then "answers" its own question. The learner must hear the tool text instead.
+    const sid = (cmd: ConverseCommand) =>
+      JSON.stringify(cmd.input.messages).match(/session_id\\":\\"([^\\"]+)/)?.[1] ?? "";
+    const steps: ((cmd: ConverseCommand) => Message)[] = [
+      () => ({ role: "assistant", content: [{ toolUse: { toolUseId: "t1", name: "start_review", input: { course_id: "mit-6.0001", learner_id: "demo" } } }] }),
+      (cmd) => ({ role: "assistant", content: [{ toolUse: { toolUseId: "t2", name: "next_question", input: { session_id: sid(cmd) } } }] }),
+      () => ({ role: "assistant", content: [{ text: "A variable is a name for a value. Please answer." }] }),
+      (cmd) => ({ role: "assistant", content: [{ toolUse: { toolUseId: "t3", name: "submit_answer", input: { session_id: sid(cmd), answer: "no idea" } } }] }),
+      (cmd) => ({ role: "assistant", content: [{ toolUse: { toolUseId: "t4", name: "next_question", input: { session_id: sid(cmd) } } }] }),
+      () => ({ role: "assistant", content: [{ text: "Branching means choosing. Please answer." }] }),
+    ];
+    let feedback = "";
+    const client = {
+      async send(cmd: ConverseCommand) {
+        const last = cmd.input.messages?.at(-1)?.content?.[0].toolResult?.content?.[0].text;
+        if (steps.length === 2 && last) feedback = last.split("\ndata:")[0];
+        const message = steps.shift()!(cmd);
+        return { stopReason: message.content?.some((b) => b.toolUse) ? "tool_use" : "end_turn", output: { message } };
+      },
+    };
+    const brain = new Brain(await session(), "demo", "mit-6.0001", client, "m");
+
+    const first = await brain.respond("review with scholia");
+    expect(first.speech).toMatch(/^In your own words, explain .+\.$/);
+
+    const second = await brain.respond("no idea");
+    expect(feedback).not.toBe("");
+    expect(second.speech).toMatch(new RegExp("^" + feedback.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + " In your own words, explain .+\\.$"));
+    expect(second.speech).not.toContain("Please answer");
+  });
+
   it("keeps history across turns", async () => {
     const { client, seen } = scripted([
       { role: "assistant", content: [{ text: "Hi." }] },

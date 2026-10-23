@@ -45,6 +45,7 @@ export class Brain {
       `The learner_id is "${this.learnerId}" and the course_id is "${this.courseId}". Always pass exactly these to tools.`,
       "Use the tools for everything about the course and the learner. Never invent questions, grades or progress.",
       "Flow: start_review, then next_question; read the question aloud and wait. When the learner answers, call submit_answer with their words and then, before replying, call next_question. Reply with the feedback followed by the new question, then wait. If next_question returns done=true, call end_review and read its summary.",
+      "While a question is waiting for an answer, anything the learner says is their answer, even a guess or 'I don't know': call submit_answer with it. Never call start_review again during a review.",
       "If the learner asks what something means, call explain. If they ask how they are doing, call progress.",
       "Speak like a voice assistant: one to three short sentences, no lists, no markdown, no code. Say the question text exactly as the tool returned it, as a question, and never answer it yourself. Shorten explain results to two sentences and name the source.",
     ].join(" ");
@@ -55,6 +56,9 @@ export class Brain {
     this.history.push({ role: "user", content: [{ text: userText }] });
     const toolCalls: Turn["toolCalls"] = [];
     let card: Card | undefined;
+    // Nova sometimes restates a question as its answer; when this turn fetched one, speak the tool text verbatim.
+    let feedback: string | undefined;
+    let question: string | undefined;
 
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
       const res = await this.client.send(
@@ -72,7 +76,8 @@ export class Brain {
 
       const uses = (message.content ?? []).filter((b): b is ContentBlock.ToolUseMember => !!b.toolUse);
       if (res.stopReason !== "tool_use" || uses.length === 0) {
-        const speech = stripThinking((message.content ?? []).map((b) => b.text ?? "").join(" "));
+        const said = stripThinking((message.content ?? []).map((b) => b.text ?? "").join(" "));
+        const speech = question ? [feedback, question].filter(Boolean).join(" ") : said;
         return { speech: speech || "Sorry, I lost my train of thought. Say that again?", card, toolCalls };
       }
 
@@ -81,6 +86,10 @@ export class Brain {
         const args = (toolUse.input ?? {}) as Record<string, unknown>;
         toolCalls.push({ name: toolUse.name!, args });
         const result = await this.mcp.call(toolUse.name!, args);
+        const sc = result.structuredContent as { done?: boolean; question?: string } | undefined;
+        const text = result.content.find((b) => b.type === "text")?.text;
+        if (!result.isError && toolUse.name === "submit_answer") feedback = text;
+        if (!result.isError && toolUse.name === "next_question") question = sc?.done ? undefined : sc?.question;
         const uri = cardUri(result);
         if (uri) card = { resourceUri: uri, html: await this.mcp.card(uri), structuredContent: result.structuredContent };
         results.push({
