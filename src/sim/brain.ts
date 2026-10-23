@@ -55,6 +55,9 @@ export class Brain {
     this.history.push({ role: "user", content: [{ text: userText }] });
     const toolCalls: Turn["toolCalls"] = [];
     let card: Card | undefined;
+    // Nova sometimes restates a question as its answer; when this turn fetched one, speak the tool text verbatim.
+    let feedback: string | undefined;
+    let question: string | undefined;
 
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round++) {
       const res = await this.client.send(
@@ -72,7 +75,8 @@ export class Brain {
 
       const uses = (message.content ?? []).filter((b): b is ContentBlock.ToolUseMember => !!b.toolUse);
       if (res.stopReason !== "tool_use" || uses.length === 0) {
-        const speech = stripThinking((message.content ?? []).map((b) => b.text ?? "").join(" "));
+        const said = stripThinking((message.content ?? []).map((b) => b.text ?? "").join(" "));
+        const speech = question ? [feedback, question].filter(Boolean).join(" ") : said;
         return { speech: speech || "Sorry, I lost my train of thought. Say that again?", card, toolCalls };
       }
 
@@ -81,6 +85,10 @@ export class Brain {
         const args = (toolUse.input ?? {}) as Record<string, unknown>;
         toolCalls.push({ name: toolUse.name!, args });
         const result = await this.mcp.call(toolUse.name!, args);
+        const sc = result.structuredContent as { done?: boolean; question?: string } | undefined;
+        const text = result.content.find((b) => b.type === "text")?.text;
+        if (!result.isError && toolUse.name === "submit_answer") feedback = text;
+        if (!result.isError && toolUse.name === "next_question") question = sc?.done ? undefined : sc?.question;
         const uri = cardUri(result);
         if (uri) card = { resourceUri: uri, html: await this.mcp.card(uri), structuredContent: result.structuredContent };
         results.push({
